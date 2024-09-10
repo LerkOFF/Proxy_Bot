@@ -1,5 +1,7 @@
 import mysql.connector
 from mysql.connector import Error
+from mysql.connector.cursor import MySQLCursorDict
+
 from config import Config
 
 def create_connection():
@@ -53,3 +55,30 @@ def user_exists(chat_id):
 
     close_connection(connection)
     return result > 0
+
+
+def update_user_payment(chat_id, is_payed):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = "UPDATE users SET IsPayed=%s, date_start=NOW() WHERE chat_id=%s"
+    try:
+        cursor.execute(query, (is_payed, chat_id))
+        connection.commit()
+    except Error as e:
+        print(f"Ошибка при обновлении статуса оплаты пользователя: {e}")
+    finally:
+        close_connection(connection)
+
+
+def get_user_by_chat_id(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    query = "SELECT * FROM users WHERE chat_id=%s"
+    cursor.execute(query, (chat_id,))
+    user = cursor.fetchone()
+
+    close_connection(connection)
+    return user
+
