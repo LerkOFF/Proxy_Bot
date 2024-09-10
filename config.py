@@ -5,6 +5,7 @@ load_dotenv()
 
 
 class Config:
+    TELEGRAM_ID = os.getenv('TELEGRAM_ID')
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
     DB_HOST = os.getenv('DB_HOST')
