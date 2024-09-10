@@ -2,7 +2,6 @@ import base64
 import requests
 import logging
 import cloudconvert
-import os
 from config import Config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -37,7 +36,7 @@ class WgEasyAPI:
             return None
 
         url = f"{self.base_url}/api/wireguard/client"
-        body = {"name": str(chat_id)}  # Используем chat_id как имя клиента
+        body = {"name": str(chat_id)}
         logging.info(f"Попытка создать клиента с chat_id: {chat_id}")
 
         try:
@@ -65,22 +64,19 @@ class WgEasyAPI:
 
         svg_data = response.content
 
-        # Конвертируем SVG в PNG через CloudConvert API
         return self.convert_svg_to_png(svg_data)
 
     def convert_svg_to_png(self, svg_data):
         cloudconvert.configure(api_key=self.cloudconvert_api_key)
 
-        # Преобразуем SVG в base64
         svg_data_base64 = base64.b64encode(svg_data).decode('utf-8')
 
-        # Создаем задачу для конвертации файла через CloudConvert
         job = cloudconvert.Job.create(payload={
             "tasks": {
                 'import-svg': {
                     'operation': 'import/base64',
-                    'file': svg_data_base64,  # Base64 закодированные данные
-                    'filename': 'client_qrcode.svg'  # Имя файла необходимо для CloudConvert
+                    'file': svg_data_base64,
+                    'filename': 'client_qrcode.svg'
                 },
                 'convert': {
                     'operation': 'convert',
@@ -94,18 +90,12 @@ class WgEasyAPI:
             }
         })
 
-        # Ожидаем завершения конвертации
         job = cloudconvert.Job.wait(job['id'])
-
         export_task = next(task for task in job['tasks'] if task['name'] == 'export-url')
         file_url = export_task['result']['files'][0]['url']
 
-        # Загружаем PNG файл
         png_response = requests.get(file_url)
-        png_data = png_response.content
-
-        return png_data
-
+        return png_response.content
 
     def get_clients(self):
         if not self.session_cookies:
@@ -128,6 +118,4 @@ class WgEasyAPI:
         for client in clients:
             logging.info(
                 f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
-
         return clients
-

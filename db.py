@@ -2,7 +2,6 @@ import mysql.connector
 from mysql.connector import Error
 from config import Config
 
-
 def create_connection():
     try:
         connection = mysql.connector.connect(
@@ -24,7 +23,6 @@ def close_connection(connection):
         connection.close()
         print("Подключение к базе данных закрыто")
 
-# Добавление нового пользователя
 def add_user(chat_id):
     connection = create_connection()
     if connection is None:
@@ -32,7 +30,6 @@ def add_user(chat_id):
         return
 
     cursor = connection.cursor()
-
     query = """
     INSERT INTO users (chat_id)
     VALUES (%s)
@@ -46,8 +43,6 @@ def add_user(chat_id):
     finally:
         close_connection(connection)
 
-
-# Проверка, существует ли пользователь
 def user_exists(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
