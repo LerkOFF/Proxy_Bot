@@ -21,16 +21,30 @@ async def start(update: Update, context):
 async def create_client(update: Update, context):
     chat_id = update.message.chat_id
 
+    # Проверяем, существует ли пользователь в базе данных
     if not user_exists(chat_id):
         await update.message.reply_text("Сначала используйте команду /start для регистрации.")
         return
 
+    # Аутентифицируемся в WireGuard API
     wg_api.authenticate()
+
+    # Получаем список клиентов
+    clients = wg_api.get_clients()
+
+    # Проверяем, существует ли уже клиент с данным chat_id
+    existing_client = next((client for client in clients if client['name'] == str(chat_id)), None)
+
+    if existing_client:
+        # Если клиент уже существует, выводим сообщение
+        await update.message.reply_text("Вам уже была создана конфигурация.")
+        return
+
+    # Создаём нового клиента
     creation_response = wg_api.create_client(chat_id)
 
     if creation_response and creation_response.get('success'):
-        clients = wg_api.get_clients()
-        created_client = next((client for client in clients if client['name'] == str(chat_id)), None)
+        created_client = next((client for client in wg_api.get_clients() if client['name'] == str(chat_id)), None)
 
         if created_client:
             client_id = created_client['id']
