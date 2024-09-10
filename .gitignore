@@ -168,3 +168,4 @@ cython_debug/
 /.idea/inspectionProfiles/Project_Default.xml
 /.idea/Proxy_Bot.iml
 /.idea/vcs.xml
+/.idea/dataSources.xml
