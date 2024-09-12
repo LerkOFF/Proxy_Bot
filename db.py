@@ -23,7 +23,6 @@ def close_connection(connection):
         connection.close()
         print("Подключение к базе данных закрыто")
 
-# Добавление нового пользователя
 def add_user(chat_id, date_start=None):
     connection = create_connection()
     if connection is None:
@@ -44,7 +43,6 @@ def add_user(chat_id, date_start=None):
     finally:
         close_connection(connection)
 
-# Проверка существования пользователя
 def user_exists(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -56,7 +54,6 @@ def user_exists(chat_id):
     close_connection(connection)
     return result > 0
 
-# Добавление клиента в таблицу clients
 def add_client(user_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -70,7 +67,6 @@ def add_client(user_id):
     finally:
         close_connection(connection)
 
-# Получение пользователя по chat_id
 def get_user_by_chat_id(chat_id):
     connection = create_connection()
     cursor = connection.cursor(dictionary=True)

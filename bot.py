@@ -19,7 +19,7 @@ async def main():
     dp.message.register(cancel, F.text == "Отмена", BuyProcess.Buying)
     dp.message.register(handle_file_upload, F.content_type.in_([types.ContentType.PHOTO, types.ContentType.DOCUMENT]), BuyProcess.Buying)
 
-    dp.callback_query.register(handle_approval, BuyProcess.WaitingPaymentConfirmation)  # Обработка одобрения/отклонения
+    dp.callback_query.register(handle_approval, BuyProcess.WaitingPaymentConfirmation)
 
     await dp.start_polling(bot)
 

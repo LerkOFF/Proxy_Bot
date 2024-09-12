@@ -1,6 +1,6 @@
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder  # Импортируем конструктор клавиатуры
+from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from config import Config
 from states import BuyProcess
 from db import add_user
@@ -15,7 +15,6 @@ async def start(message: types.Message, state: FSMContext):
 
     add_user(chat_id)
 
-    # Используем ReplyKeyboardBuilder для создания клавиатуры
     keyboard_builder = ReplyKeyboardBuilder()
     keyboard_builder.add(types.KeyboardButton(text="Купить 'Финляндия'"))
     keyboard = keyboard_builder.as_markup(resize_keyboard=True)
