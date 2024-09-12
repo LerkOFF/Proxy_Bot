@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from config import Config
 from states import BuyProcess
-from db import add_user
+from db import add_user, set_user_state, get_user_state
 import logging
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -12,6 +12,10 @@ logger = logging.getLogger(__name__)
 async def start(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
     logger.info(f"Command 'start' used by user with chat_id: {chat_id}")
+
+    saved_state = get_user_state(chat_id)
+    if saved_state:
+        await state.set_state(saved_state)
 
     add_user(chat_id)
 
@@ -24,6 +28,7 @@ async def start(message: types.Message, state: FSMContext):
         reply_markup=keyboard
     )
     await state.set_state(BuyProcess.Start)
+    set_user_state(chat_id, BuyProcess.Start)
 
 async def buy_finland(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
@@ -38,6 +43,7 @@ async def buy_finland(message: types.Message, state: FSMContext):
         reply_markup=keyboard
     )
     await state.set_state(BuyProcess.Buying)
+    set_user_state(chat_id, BuyProcess.Buying)
 
 async def cancel(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
@@ -51,6 +57,7 @@ async def cancel(message: types.Message, state: FSMContext):
         reply_markup=keyboard
     )
     await state.set_state(BuyProcess.Start)
+    set_user_state(chat_id, BuyProcess.Start)
 
 async def handle_file_upload(message: types.Message, state: FSMContext):
     chat_id = message.chat.id

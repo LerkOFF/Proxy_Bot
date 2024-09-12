@@ -1,6 +1,8 @@
 import mysql.connector
 from mysql.connector import Error
 from config import Config
+from states import BuyProcess
+
 
 def create_connection():
     try:
@@ -101,3 +103,67 @@ def update_user_payment(chat_id):
         print(f"Ошибка при обновлении платежа пользователя: {e}")
     finally:
         close_connection(connection)
+
+
+def set_user_state(chat_id, state):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = """
+    INSERT INTO user_states (chat_id, state) VALUES (%s, %s)
+    ON DUPLICATE KEY UPDATE state=%s;
+    """
+    try:
+        state_str = state.state
+        cursor.execute(query, (chat_id, state_str, state_str))
+        connection.commit()
+    except Error as e:
+        print(f"Ошибка при установке состояния пользователя: {e}")
+    finally:
+        close_connection(connection)
+
+
+def get_user_state(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    query = "SELECT state FROM user_states WHERE chat_id=%s"
+    cursor.execute(query, (chat_id,))
+    user_state = cursor.fetchone()
+
+    close_connection(connection)
+
+    if user_state:
+        state_str = user_state['state']
+        if state_str == "BuyProcess:Start":
+            return BuyProcess.Start
+        elif state_str == "BuyProcess:Buying":
+            return BuyProcess.Buying
+        elif state_str == "BuyProcess:WaitingAnswer":
+            return BuyProcess.WaitingAnswer
+        elif state_str == "BuyProcess:WaitingPaymentConfirmation":
+            return BuyProcess.WaitingPaymentConfirmation
+    return None
+
+
+def reset_user_state(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = "DELETE FROM user_states WHERE chat_id=%s"
+    cursor.execute(query, (chat_id,))
+    connection.commit()
+
+    close_connection(connection)
+
+
+def get_all_users_from_db():
+    connection = create_connection()
+    cursor = connection.cursor(dictionary=True)
+
+    query = "SELECT chat_id FROM users"
+    cursor.execute(query)
+    users = cursor.fetchall()
+
+    close_connection(connection)
+    return users

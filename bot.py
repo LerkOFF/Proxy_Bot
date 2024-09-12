@@ -1,8 +1,9 @@
-
 import logging
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
 from buy import start, buy_finland, cancel, handle_file_upload
+from db import get_user_state, get_all_users_from_db
 from payments import handle_approval
 from config import Config
 from states import BuyProcess
@@ -19,11 +20,18 @@ async def main():
     dp.message.register(cancel, F.text == "Отмена", BuyProcess.Buying)
     dp.message.register(handle_file_upload, F.content_type.in_([types.ContentType.PHOTO, types.ContentType.DOCUMENT]), BuyProcess.Buying)
 
-    dp.callback_query.register(handle_approval, BuyProcess.WaitingPaymentConfirmation)
+    dp.callback_query.register(handle_approval, F.data.startswith('approve_') | F.data.startswith('reject_'))
+
+    users = get_all_users_from_db()
+    for user in users:
+        saved_state = get_user_state(user['chat_id'])
+        if saved_state:
+            key = StorageKey(user_id=user['chat_id'], chat_id=user['chat_id'], bot_id=bot.id)
+            await dp.fsm.storage.set_state(key=key, state=saved_state)
+            logger.info(f"Состояние для пользователя {user['chat_id']} восстановлено: {saved_state}")
 
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
     import asyncio
     asyncio.run(main())
-
