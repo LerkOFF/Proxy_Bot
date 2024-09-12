@@ -7,7 +7,7 @@ from aiogram.utils.keyboard import ReplyKeyboardBuilder
 from db import get_user_by_chat_id, update_user_payment, set_user_state
 from wg import WgEasyAPI
 from config import Config
-from states import BuyProcess  # Импортируем BuyProcess
+from states import BuyProcess
 import logging
 
 logger = logging.getLogger(__name__)

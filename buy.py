@@ -3,7 +3,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from config import Config
 from states import BuyProcess
-from db import add_user, set_user_state, get_user_state
+from db import add_user, set_user_state, get_user_state, is_payment_recent
 import logging
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -32,6 +32,10 @@ async def start(message: types.Message, state: FSMContext):
 
 async def buy_finland(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
+
+    if is_payment_recent(chat_id):
+        await message.answer("У вас уже была оплаченная подписка, повторная покупка возможна через месяц.")
+        return
 
     keyboard_builder = ReplyKeyboardBuilder()
     keyboard_builder.add(types.KeyboardButton(text="Отмена"))

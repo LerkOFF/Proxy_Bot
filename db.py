@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import mysql.connector
 from mysql.connector import Error
 from config import Config
@@ -167,3 +169,28 @@ def get_all_users_from_db():
 
     close_connection(connection)
     return users
+
+# Проверяем, был ли пользователь оплачен в последний месяц
+def is_payment_recent(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = """
+    SELECT date_payed FROM clients
+    WHERE user_id=%s
+    ORDER BY date_payed DESC
+    LIMIT 1;
+    """
+    try:
+        cursor.execute(query, (chat_id,))
+        result = cursor.fetchone()
+        if result:
+            last_payment_date = result[0]
+            if last_payment_date >= datetime.now() - timedelta(days=30):
+                return True
+    except Error as e:
+        print(f"Ошибка при проверке оплаты: {e}")
+    finally:
+        close_connection(connection)
+
+    return False
