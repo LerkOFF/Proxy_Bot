@@ -1,11 +1,9 @@
-import base64
 import requests
 import logging
-import cloudconvert
+
 from config import Config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
 
 class WgEasyAPI:
     def __init__(self, base_url, password):
@@ -13,7 +11,6 @@ class WgEasyAPI:
         self.headers = {'Content-Type': 'application/json'}
         self.password = password
         self.session_cookies = None
-        self.cloudconvert_api_key = Config.CLOUDCONVERT_API_KEY
         logging.info(f"Инициализация API с базовым URL: {self.base_url}")
 
     def authenticate(self):
@@ -32,7 +29,7 @@ class WgEasyAPI:
 
     def create_client(self, chat_id):
         if not self.session_cookies:
-            logging.error("Невозможно создать клиента без аутентификации")
+            logging.error("Необходимо выполнить аутентификацию перед созданием клиента")
             return None
 
         url = f"{self.base_url}/api/wireguard/client"
@@ -47,55 +44,22 @@ class WgEasyAPI:
             logging.error(f"Ошибка при создании клиента: {e}")
             return None
 
-    def get_qr_code(self, client_id):
+    def get_config_client(self, client_id):
         if not self.session_cookies:
-            logging.error("Необходимо выполнить аутентификацию перед получением QR-кода")
+            logging.error("Необходимо выполнить аутентификацию перед получением конфигурации клиента")
             return None
 
-        url = f"{self.base_url}/api/wireguard/client/{client_id}/qrcode.svg"
-        logging.info(f"Попытка получить QR-код клиента с ID: {client_id}")
+        url = f"{self.base_url}/api/wireguard/client/{client_id}/configuration"
+        logging.info(f"Попытка получить конфигурацию клиента с ID: {client_id}")
 
         try:
             response = requests.get(url, headers=self.headers, cookies=self.session_cookies)
             response.raise_for_status()
+            config_data = response.text
+            return config_data
         except requests.exceptions.RequestException as e:
-            logging.error(f"Ошибка при получении QR-кода: {e}")
+            logging.error(f"Ошибка при получении конфигурации клиента: {e}")
             return None
-
-        svg_data = response.content
-
-        return self.convert_svg_to_png(svg_data)
-
-    def convert_svg_to_png(self, svg_data):
-        cloudconvert.configure(api_key=self.cloudconvert_api_key)
-
-        svg_data_base64 = base64.b64encode(svg_data).decode('utf-8')
-
-        job = cloudconvert.Job.create(payload={
-            "tasks": {
-                'import-svg': {
-                    'operation': 'import/base64',
-                    'file': svg_data_base64,
-                    'filename': 'client_qrcode.svg'
-                },
-                'convert': {
-                    'operation': 'convert',
-                    'input': 'import-svg',
-                    'output_format': 'png',
-                },
-                'export-url': {
-                    'operation': 'export/url',
-                    'input': 'convert'
-                }
-            }
-        })
-
-        job = cloudconvert.Job.wait(job['id'])
-        export_task = next(task for task in job['tasks'] if task['name'] == 'export-url')
-        file_url = export_task['result']['files'][0]['url']
-
-        png_response = requests.get(file_url)
-        return png_response.content
 
     def get_clients(self):
         if not self.session_cookies:
@@ -116,6 +80,5 @@ class WgEasyAPI:
         logging.info(f"Всего клиентов: {len(clients)}")
 
         for client in clients:
-            logging.info(
-                f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
+            logging.info(f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
         return clients

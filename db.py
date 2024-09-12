@@ -1,7 +1,5 @@
 import mysql.connector
 from mysql.connector import Error
-from mysql.connector.cursor import MySQLCursorDict
-
 from config import Config
 
 def create_connection():
@@ -25,7 +23,8 @@ def close_connection(connection):
         connection.close()
         print("Подключение к базе данных закрыто")
 
-def add_user(chat_id):
+# Добавление нового пользователя
+def add_user(chat_id, date_start=None):
     connection = create_connection()
     if connection is None:
         print("Не удалось установить соединение с базой данных")
@@ -33,18 +32,19 @@ def add_user(chat_id):
 
     cursor = connection.cursor()
     query = """
-    INSERT INTO users (chat_id)
-    VALUES (%s)
+    INSERT INTO users (chat_id, date_start)
+    VALUES (%s, %s)
     ON DUPLICATE KEY UPDATE chat_id=chat_id;
     """
     try:
-        cursor.execute(query, (chat_id,))
+        cursor.execute(query, (chat_id, date_start))
         connection.commit()
     except Error as e:
         print(f"Ошибка при добавлении пользователя: {e}")
     finally:
         close_connection(connection)
 
+# Проверка существования пользователя
 def user_exists(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -56,21 +56,21 @@ def user_exists(chat_id):
     close_connection(connection)
     return result > 0
 
-
-def update_user_payment(chat_id, is_payed):
+# Добавление клиента в таблицу clients
+def add_client(user_id):
     connection = create_connection()
     cursor = connection.cursor()
 
-    query = "UPDATE users SET IsPayed=%s, date_start=NOW() WHERE chat_id=%s"
+    query = "INSERT INTO clients (user_id, date_payed) VALUES (%s, NOW())"
     try:
-        cursor.execute(query, (is_payed, chat_id))
+        cursor.execute(query, (user_id,))
         connection.commit()
     except Error as e:
-        print(f"Ошибка при обновлении статуса оплаты пользователя: {e}")
+        print(f"Ошибка при добавлении клиента: {e}")
     finally:
         close_connection(connection)
 
-
+# Получение пользователя по chat_id
 def get_user_by_chat_id(chat_id):
     connection = create_connection()
     cursor = connection.cursor(dictionary=True)
@@ -82,3 +82,26 @@ def get_user_by_chat_id(chat_id):
     close_connection(connection)
     return user
 
+
+def update_user_payment(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    try:
+        query_user = "SELECT chat_id FROM users WHERE chat_id=%s"
+        cursor.execute(query_user, (chat_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            print(f"Пользователь с chat_id {chat_id} не найден.")
+            return
+
+        query_add_client = "INSERT INTO clients (user_id, date_payed) VALUES (%s, NOW())"
+        cursor.execute(query_add_client, (chat_id,))
+
+        connection.commit()
+        print(f"Оплата для пользователя с chat_id {chat_id} обновлена.")
+    except Error as e:
+        print(f"Ошибка при обновлении платежа пользователя: {e}")
+    finally:
+        close_connection(connection)

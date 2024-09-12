@@ -16,5 +16,3 @@ class Config:
 
     WG_PASSWORD = os.getenv('WG_PASSWORD')
     WG_QR_SAVE_PATH = os.getenv('WG_QR_SAVE_PATH')
-
-    CLOUDCONVERT_API_KEY = os.getenv('CLOUDCONVERT_API_KEY')

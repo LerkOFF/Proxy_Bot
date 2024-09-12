@@ -1,22 +1,29 @@
+
 import logging
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackQueryHandler
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.fsm.storage.memory import MemoryStorage
+from buy import start, buy_finland, cancel, handle_file_upload
+from payments import handle_approval
 from config import Config
-from buy import start, handle_button_click, handle_file_upload, handle_approval
+from states import BuyProcess
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Основная функция для инициализации и запуска бота
-def main():
-    logger.info("Запуск бота...")
+async def main():
+    bot = Bot(token=Config.TELEGRAM_BOT_TOKEN)
+    dp = Dispatcher(storage=MemoryStorage())
 
-    application = Application.builder().token(Config.TELEGRAM_BOT_TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_button_click))
-    application.add_handler(MessageHandler(filters.PHOTO | filters.Document.ALL, handle_file_upload))
-    application.add_handler(CallbackQueryHandler(handle_approval))
+    dp.message.register(start, F.text == "/start")
+    dp.message.register(buy_finland, F.text == "Купить 'Финляндия'", BuyProcess.Start)
+    dp.message.register(cancel, F.text == "Отмена", BuyProcess.Buying)
+    dp.message.register(handle_file_upload, F.content_type.in_([types.ContentType.PHOTO, types.ContentType.DOCUMENT]), BuyProcess.Buying)
 
-    application.run_polling()
+    dp.callback_query.register(handle_approval, BuyProcess.WaitingPaymentConfirmation)  # Обработка одобрения/отклонения
+
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    main()
+    import asyncio
+    asyncio.run(main())
+
