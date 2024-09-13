@@ -63,6 +63,8 @@ async def send_warning_message(bot, chat_id, days_passed):
         message_text = "Ваша подписка закончится завтра. Оплатите подписку, чтобы избежать отключения."
     elif days_passed == 33:
         message_text = "Ваша подписка закончится сегодня. Оплатите подписку, чтобы избежать отключения."
+    else:
+        message_text = "Ваша подписка скоро закончится. Пожалуйста, оплатите её."
 
     await send_message(bot, chat_id, message_text)
 
