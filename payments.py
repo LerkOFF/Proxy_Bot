@@ -97,7 +97,7 @@ async def handle_approval(query: types.CallbackQuery, state: FSMContext):
             await query.message.edit_caption(caption="Ошибка: Пользователь уже имеет оплаченный статус.")
 
     elif action == "reject":
-        await query.message.bot.send_message(chat_id, text="Ошибка. Ваши данные были отклонены.")
+        await query.message.bot.send_message(chat_id, text="Ошибка. Ваши данные были отклонены. Если что-то не так, свяжитесь по почте lerk@joulerk.ru")
         await query.message.edit_caption(caption=f"Платёж пользователя {chat_id} был отклонён.")
 
         await state.set_state(BuyProcess.Start)
