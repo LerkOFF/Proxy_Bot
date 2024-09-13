@@ -15,4 +15,3 @@ class Config:
     DB_PASSWORD = os.getenv('DB_PASSWORD')
 
     WG_PASSWORD = os.getenv('WG_PASSWORD')
-    WG_QR_SAVE_PATH = os.getenv('WG_QR_SAVE_PATH')
