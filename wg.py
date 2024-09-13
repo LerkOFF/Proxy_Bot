@@ -127,21 +127,33 @@ class WgEasyAPI:
             logging.info(f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
         return clients
 
-    def remove_client(self, client_id):
+    def remove_client(self, chat_id):
         if not self.session_cookies:
             logging.error("Необходимо выполнить аутентификацию перед удалением клиента")
             return False
 
+        clients = self.get_clients()
+        if not clients:
+            return False
+
+        client = next((c for c in clients if c['name'] == str(chat_id)), None)
+        if not client:
+            logging.error(f"Клиент с chat_id {chat_id} не найден среди существующих клиентов WireGuard")
+            return False
+
+        client_id = client['id']
         url = f"{self.base_url}/api/wireguard/client/{client_id}"
-        logging.info(f"Попытка удалить клиента с ID: {client_id}")
+
+        logging.info(f"Попытка удалить клиента с ID: {client_id} и chat_id: {chat_id}")
 
         try:
             response = requests.delete(url, headers=self.headers, cookies=self.session_cookies)
             response.raise_for_status()
-            logging.info(f"Клиент {client_id} успешно удалён")
+            logging.info(f"Клиент {chat_id} успешно удалён из WireGuard (ID: {client_id})")
             return True
         except requests.exceptions.RequestException as e:
-            logging.error(f"Ошибка при удалении клиента {client_id}: {e}")
+            logging.error(f"Ошибка при удалении клиента {chat_id} из WireGuard: {e}")
             return False
+
 
 
