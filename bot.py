@@ -24,11 +24,12 @@ async def main():
 
     users = get_all_users_from_db()
     for user in users:
-        saved_state = get_user_state(user['chat_id'])
+        user_id = user['chat_id']
+        saved_state = get_user_state(user_id)
         if saved_state:
-            key = StorageKey(user_id=user['chat_id'], chat_id=user['chat_id'], bot_id=bot.id)
+            key = StorageKey(user_id=user_id, chat_id=user_id, bot_id=bot.id)
             await dp.fsm.storage.set_state(key=key, state=saved_state)
-            logger.info(f"Состояние для пользователя {user['chat_id']} восстановлено: {saved_state}")
+            logger.info(f"Состояние для пользователя {user_id} восстановлено: {saved_state}")
 
     await dp.start_polling(bot)
 

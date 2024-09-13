@@ -1,9 +1,9 @@
 import requests
 import logging
-
 from config import Config
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 class WgEasyAPI:
     def __init__(self, base_url, password):
@@ -23,9 +23,10 @@ class WgEasyAPI:
             response.raise_for_status()
             self.session_cookies = response.cookies
             logging.info("Аутентификация успешна")
+            return True
         except requests.exceptions.RequestException as e:
             logging.error(f"Ошибка аутентификации: {e}")
-            return None
+            return False
 
     def create_client(self, chat_id):
         if not self.session_cookies:
@@ -43,6 +44,23 @@ class WgEasyAPI:
         except requests.exceptions.RequestException as e:
             logging.error(f"Ошибка при создании клиента: {e}")
             return None
+
+    def enable_client(self, client_id):
+        if not self.session_cookies:
+            logging.error("Необходимо выполнить аутентификацию перед включением клиента")
+            return False
+
+        url = f"{self.base_url}/api/wireguard/client/{client_id}/enable"
+        logging.info(f"Попытка включить клиента с ID: {client_id}")
+
+        try:
+            response = requests.post(url, headers=self.headers, cookies=self.session_cookies)
+            response.raise_for_status()
+            logging.info(f"Клиент {client_id} успешно включён")
+            return True
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Ошибка при включении клиента {client_id}: {e}")
+            return False
 
     def get_config_client(self, client_id):
         if not self.session_cookies:
@@ -82,3 +100,5 @@ class WgEasyAPI:
         for client in clients:
             logging.info(f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
         return clients
+
+

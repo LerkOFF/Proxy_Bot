@@ -1,9 +1,11 @@
+from datetime import datetime
+
 from aiogram import types
 from aiogram.fsm.context import FSMContext
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from config import Config
 from states import BuyProcess
-from db import add_user, set_user_state, get_user_state, is_payment_recent
+from db import add_user, set_user_state, get_user_state, is_payment_recent, get_last_payment_date
 import logging
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
@@ -34,7 +36,14 @@ async def buy_finland(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
 
     if is_payment_recent(chat_id):
-        await message.answer("У вас уже была оплаченная подписка, повторная покупка возможна через месяц.")
+        last_payment_date = get_last_payment_date(chat_id)
+        if last_payment_date:
+            days_left = 30 - (datetime.now() - last_payment_date).days
+
+            if days_left > 0:
+                await message.answer(f"У вас уже есть подписка. Осталось {days_left} дней до её окончания.")
+            else:
+                await message.answer("Ваша подписка истекла, но вы все еще можете ее продлить.")
         return
 
     keyboard_builder = ReplyKeyboardBuilder()

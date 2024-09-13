@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import qrcode
 import os
 from aiogram import types
@@ -24,7 +26,30 @@ async def handle_approval(query: types.CallbackQuery, state: FSMContext):
 
     if action == "approve":
         user = get_user_by_chat_id(chat_id)
-        if user and not user["date_start"]:
+        if user:
+            start_date = user.get('date_start', None)
+            if start_date:
+                days_passed = (datetime.now() - start_date).days
+
+                if days_passed >= 30 & days_passed <= 33:
+                    wg_api.authenticate()
+
+                    clients = wg_api.get_clients()
+                    existing_client = next((client for client in clients if client['name'] == str(chat_id)), None)
+
+                    if existing_client:
+                        client_id = existing_client['id']
+
+                        enable_response = wg_api.enable_client(client_id)
+                        if enable_response:
+                            await query.message.bot.send_message(chat_id,
+                                                                 "Ваша подписка продлена, клиент WireGuard был включён.")
+                            logger.info(f"Клиент с chat_id {chat_id} был повторно включён в WireGuard.")
+                            return
+                        else:
+                            await query.message.bot.send_message(chat_id, "Не удалось включить клиента, будет создан новый.")
+                            logger.warning(f"Не удалось включить клиента с chat_id {chat_id}, создаём нового.")
+
             update_user_payment(chat_id)
             wg_api.authenticate()
 

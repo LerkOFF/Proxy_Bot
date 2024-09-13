@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 
 import mysql.connector
@@ -5,6 +6,8 @@ from mysql.connector import Error
 from config import Config
 from states import BuyProcess
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def create_connection():
     try:
@@ -16,36 +19,41 @@ def create_connection():
             password=Config.DB_PASSWORD
         )
         if connection.is_connected():
-            print("Соединение с базой данных установлено")
+            logger.info("Соединение с базой данных установлено")
         return connection
     except Error as e:
-        print(f"Ошибка подключения к базе данных: {e}")
+        logger.error(f"Ошибка подключения к базе данных: {e}")
         return None
 
 def close_connection(connection):
     if connection and connection.is_connected():
         connection.close()
-        print("Подключение к базе данных закрыто")
+        logger.info("Подключение к базе данных закрыто")
 
 def add_user(chat_id, date_start=None):
+    if date_start is None:
+        date_start = datetime.now()
+
     connection = create_connection()
     if connection is None:
         print("Не удалось установить соединение с базой данных")
         return
 
-    cursor = connection.cursor()
     query = """
     INSERT INTO users (chat_id, date_start)
     VALUES (%s, %s)
     ON DUPLICATE KEY UPDATE chat_id=chat_id;
     """
     try:
-        cursor.execute(query, (chat_id, date_start))
+        with connection.cursor() as cursor:
+            cursor.execute(query, (chat_id, date_start))
         connection.commit()
+        print(f"Пользователь с chat_id {chat_id} добавлен/обновлён")
     except Error as e:
         print(f"Ошибка при добавлении пользователя: {e}")
     finally:
         close_connection(connection)
+
 
 def user_exists(chat_id):
     connection = create_connection()
@@ -109,16 +117,31 @@ def update_user_payment(chat_id):
 
 def set_user_state(chat_id, state):
     connection = create_connection()
-    cursor = connection.cursor()
+    if connection is None:
+        print("Не удалось установить соединение с базой данных")
+        return
+    query_get_user_id = """
+    SELECT chat_id FROM users WHERE chat_id=%s
+    """
 
-    query = """
-    INSERT INTO user_states (chat_id, state) VALUES (%s, %s)
+    query_insert_state = """
+    INSERT INTO user_states (user_id, state) VALUES (%s, %s)
     ON DUPLICATE KEY UPDATE state=%s;
     """
+
     try:
-        state_str = state.state
-        cursor.execute(query, (chat_id, state_str, state_str))
-        connection.commit()
+        with connection.cursor() as cursor:
+            cursor.execute(query_get_user_id, (chat_id,))
+            result = cursor.fetchone()
+
+            if result:
+                user_id = result[0]
+                state_str = state.state
+                cursor.execute(query_insert_state, (user_id, state_str, state_str))
+                connection.commit()
+                print(f"Состояние пользователя {user_id} установлено как {state_str}")
+            else:
+                print(f"Пользователь с chat_id {chat_id} не найден.")
     except Error as e:
         print(f"Ошибка при установке состояния пользователя: {e}")
     finally:
@@ -127,24 +150,46 @@ def set_user_state(chat_id, state):
 
 def get_user_state(chat_id):
     connection = create_connection()
-    cursor = connection.cursor(dictionary=True)
+    if connection is None:
+        print("Не удалось установить соединение с базой данных")
+        return None
 
-    query = "SELECT state FROM user_states WHERE chat_id=%s"
-    cursor.execute(query, (chat_id,))
-    user_state = cursor.fetchone()
+    # Получаем user_id (chat_id) из таблицы users
+    query_get_user_id = """
+    SELECT chat_id FROM users WHERE chat_id=%s
+    """
 
-    close_connection(connection)
+    query_get_state = """
+    SELECT state FROM user_states WHERE user_id=%s
+    """
 
-    if user_state:
-        state_str = user_state['state']
-        if state_str == "BuyProcess:Start":
-            return BuyProcess.Start
-        elif state_str == "BuyProcess:Buying":
-            return BuyProcess.Buying
-        elif state_str == "BuyProcess:WaitingAnswer":
-            return BuyProcess.WaitingAnswer
-        elif state_str == "BuyProcess:WaitingPaymentConfirmation":
-            return BuyProcess.WaitingPaymentConfirmation
+    try:
+        with connection.cursor(dictionary=True) as cursor:
+            cursor.execute(query_get_user_id, (chat_id,))
+            result = cursor.fetchone()
+
+            if result:
+                user_id = result['chat_id']
+                cursor.execute(query_get_state, (user_id,))
+                user_state = cursor.fetchone()
+
+                if user_state:
+                    state_str = user_state['state']
+                    if state_str == "BuyProcess:Start":
+                        return BuyProcess.Start
+                    elif state_str == "BuyProcess:Buying":
+                        return BuyProcess.Buying
+                    elif state_str == "BuyProcess:WaitingAnswer":
+                        return BuyProcess.WaitingAnswer
+                    elif state_str == "BuyProcess:WaitingPaymentConfirmation":
+                        return BuyProcess.WaitingPaymentConfirmation
+            else:
+                print(f"Пользователь с chat_id {chat_id} не найден.")
+    except Error as e:
+        print(f"Ошибка при получении состояния пользователя: {e}")
+    finally:
+        close_connection(connection)
+
     return None
 
 
@@ -170,7 +215,6 @@ def get_all_users_from_db():
     close_connection(connection)
     return users
 
-# Проверяем, был ли пользователь оплачен в последний месяц
 def is_payment_recent(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -194,3 +238,25 @@ def is_payment_recent(chat_id):
         close_connection(connection)
 
     return False
+
+def get_last_payment_date(chat_id):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = """
+    SELECT date_payed FROM clients
+    WHERE user_id=%s
+    ORDER BY date_payed DESC
+    LIMIT 1;
+    """
+    try:
+        cursor.execute(query, (chat_id,))
+        result = cursor.fetchone()
+        if result:
+            return result[0]
+    except Error as e:
+        print(f"Ошибка при получении даты последней оплаты: {e}")
+    finally:
+        close_connection(connection)
+
+    return None
