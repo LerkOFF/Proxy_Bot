@@ -3,7 +3,6 @@ import os
 
 load_dotenv()
 
-
 class Config:
     TELEGRAM_ID = os.getenv('TELEGRAM_ID')
     TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
@@ -13,4 +12,5 @@ class Config:
     DB_USER = os.getenv('DB_USER')
     DB_PASSWORD = os.getenv('DB_PASSWORD')
     WG_PASSWORD = os.getenv('WG_PASSWORD')
-
+    WG1_SERVER_IP = os.getenv('WG1_SERVER_IP')
+    WG2_SERVER_IP = os.getenv('WG2_SERVER_IP')

@@ -1,3 +1,4 @@
+# db.py
 import logging
 from datetime import datetime, timedelta
 
@@ -54,7 +55,6 @@ def add_user(chat_id, date_start=None):
     finally:
         close_connection(connection)
 
-
 def user_exists(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
@@ -66,13 +66,13 @@ def user_exists(chat_id):
     close_connection(connection)
     return result > 0
 
-def add_client(user_id):
+def add_client(user_id, server):
     connection = create_connection()
     cursor = connection.cursor()
 
-    query = "INSERT INTO clients (user_id, date_payed) VALUES (%s, NOW())"
+    query = "INSERT INTO clients (user_id, date_payed, server) VALUES (%s, NOW(), %s)"
     try:
-        cursor.execute(query, (user_id,))
+        cursor.execute(query, (user_id, server))
         connection.commit()
     except Error as e:
         print(f"Ошибка при добавлении клиента: {e}")
@@ -90,8 +90,7 @@ def get_user_by_chat_id(chat_id):
     close_connection(connection)
     return user
 
-
-def update_user_payment(chat_id):
+def update_user_payment(chat_id, server):
     connection = create_connection()
     cursor = connection.cursor()
 
@@ -104,16 +103,15 @@ def update_user_payment(chat_id):
             print(f"Пользователь с chat_id {chat_id} не найден.")
             return
 
-        query_add_client = "INSERT INTO clients (user_id, date_payed) VALUES (%s, NOW())"
-        cursor.execute(query_add_client, (chat_id,))
+        query_add_client = "INSERT INTO clients (user_id, date_payed, server) VALUES (%s, NOW(), %s)"
+        cursor.execute(query_add_client, (chat_id, server))
 
         connection.commit()
-        print(f"Оплата для пользователя с chat_id {chat_id} обновлена.")
+        print(f"Оплата для пользователя с chat_id {chat_id} на сервер {server} обновлена.")
     except Error as e:
         print(f"Ошибка при обновлении платежа пользователя: {e}")
     finally:
         close_connection(connection)
-
 
 def set_user_state(chat_id, state):
     connection = create_connection()
@@ -147,14 +145,12 @@ def set_user_state(chat_id, state):
     finally:
         close_connection(connection)
 
-
 def get_user_state(chat_id):
     connection = create_connection()
     if connection is None:
         print("Не удалось установить соединение с базой данных")
         return None
 
-    # Получаем user_id (chat_id) из таблицы users
     query_get_user_id = """
     SELECT chat_id FROM users WHERE chat_id=%s
     """
@@ -192,17 +188,15 @@ def get_user_state(chat_id):
 
     return None
 
-
 def reset_user_state(chat_id):
     connection = create_connection()
     cursor = connection.cursor()
 
-    query = "DELETE FROM user_states WHERE chat_id=%s"
+    query = "DELETE FROM user_states WHERE user_id=%s"
     cursor.execute(query, (chat_id,))
     connection.commit()
 
     close_connection(connection)
-
 
 def get_all_users_from_db():
     connection = create_connection()
@@ -215,22 +209,22 @@ def get_all_users_from_db():
     close_connection(connection)
     return users
 
-def is_payment_recent(chat_id):
+def is_payment_recent(chat_id, server, days=30):
     connection = create_connection()
     cursor = connection.cursor()
 
     query = """
     SELECT date_payed FROM clients
-    WHERE user_id=%s
+    WHERE user_id=%s AND server=%s
     ORDER BY date_payed DESC
     LIMIT 1;
     """
     try:
-        cursor.execute(query, (chat_id,))
+        cursor.execute(query, (chat_id, server))
         result = cursor.fetchone()
         if result:
             last_payment_date = result[0]
-            if last_payment_date >= datetime.now() - timedelta(days=30):
+            if last_payment_date >= datetime.now() - timedelta(days=days):
                 return True
     except Error as e:
         print(f"Ошибка при проверке оплаты: {e}")
@@ -239,18 +233,18 @@ def is_payment_recent(chat_id):
 
     return False
 
-def get_last_payment_date(chat_id):
+def get_last_payment_date(chat_id, server):
     connection = create_connection()
     cursor = connection.cursor()
 
     query = """
     SELECT date_payed FROM clients
-    WHERE user_id=%s
+    WHERE user_id=%s AND server=%s
     ORDER BY date_payed DESC
     LIMIT 1;
     """
     try:
-        cursor.execute(query, (chat_id,))
+        cursor.execute(query, (chat_id, server))
         result = cursor.fetchone()
         if result:
             return result[0]
@@ -260,3 +254,22 @@ def get_last_payment_date(chat_id):
         close_connection(connection)
 
     return None
+
+def user_already_has_subscription(chat_id, server):
+    connection = create_connection()
+    cursor = connection.cursor()
+
+    query = """
+    SELECT * FROM clients
+    WHERE user_id = %s AND server = %s
+    AND date_payed > NOW() - INTERVAL 30 DAY
+    """
+    try:
+        cursor.execute(query, (chat_id, server))
+        result = cursor.fetchone()
+        return result is not None
+    except Error as e:
+        logger.error(f"Ошибка при проверке подписки: {e}")
+        return False
+    finally:
+        close_connection(connection)

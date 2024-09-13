@@ -1,8 +1,9 @@
+# bot.py
 import logging
 from aiogram import Bot, Dispatcher, F, types
 from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
-from buy import start, buy_finland, cancel, handle_file_upload
+from buy import start, buy_server, cancel, handle_file_upload
 from db import get_user_state, get_all_users_from_db
 from payments import handle_approval
 from config import Config
@@ -16,7 +17,7 @@ async def main():
     dp = Dispatcher(storage=MemoryStorage())
 
     dp.message.register(start, F.text == "/start")
-    dp.message.register(buy_finland, F.text == "Купить 'Финляндия'", BuyProcess.Start)
+    dp.message.register(buy_server, F.text.startswith("Купить "), BuyProcess.Start)
     dp.message.register(cancel, F.text == "Отмена", BuyProcess.Buying)
     dp.message.register(handle_file_upload, F.content_type.in_([types.ContentType.PHOTO, types.ContentType.DOCUMENT]), BuyProcess.Buying)
 
