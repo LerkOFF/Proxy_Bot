@@ -62,6 +62,32 @@ class WgEasyAPI:
             logging.error(f"Ошибка при включении клиента {client_id}: {e}")
             return False
 
+    def disable_client(self, chat_id):
+        if not self.session_cookies:
+            logging.error("Необходимо выполнить аутентификацию перед отключением клиента")
+            return False
+
+        clients = self.get_clients()
+        if not clients:
+            return False
+
+        client = next((c for c in clients if c['name'] == str(chat_id)), None)
+        if not client:
+            logging.error(f"Клиент с chat_id {chat_id} не найден")
+            return False
+
+        client_id = client['id']
+        url = f"{self.base_url}/api/wireguard/client/{client_id}/disable"
+
+        try:
+            response = requests.post(url, headers=self.headers, cookies=self.session_cookies)
+            response.raise_for_status()
+            logging.info(f"Клиент {chat_id} успешно отключён")
+            return True
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Ошибка при отключении клиента {chat_id}: {e}")
+            return False
+
     def get_config_client(self, client_id):
         if not self.session_cookies:
             logging.error("Необходимо выполнить аутентификацию перед получением конфигурации клиента")
@@ -100,5 +126,22 @@ class WgEasyAPI:
         for client in clients:
             logging.info(f"Клиент: {client['name']}, IP: {client['address']}, ID: {client['id']}, Создан: {client['createdAt']}")
         return clients
+
+    def remove_client(self, client_id):
+        if not self.session_cookies:
+            logging.error("Необходимо выполнить аутентификацию перед удалением клиента")
+            return False
+
+        url = f"{self.base_url}/api/wireguard/client/{client_id}"
+        logging.info(f"Попытка удалить клиента с ID: {client_id}")
+
+        try:
+            response = requests.delete(url, headers=self.headers, cookies=self.session_cookies)
+            response.raise_for_status()
+            logging.info(f"Клиент {client_id} успешно удалён")
+            return True
+        except requests.exceptions.RequestException as e:
+            logging.error(f"Ошибка при удалении клиента {client_id}: {e}")
+            return False
 
 
