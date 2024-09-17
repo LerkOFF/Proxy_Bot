@@ -5,6 +5,7 @@ def get_main_menu_keyboard():
     keyboard_builder = ReplyKeyboardBuilder()
     keyboard_builder.add(types.KeyboardButton(text="Купить 'Финляндия'"))
     keyboard_builder.add(types.KeyboardButton(text="Купить 'США'"))
+    keyboard_builder.add(types.KeyboardButton(text="Контакты"))
     return keyboard_builder.as_markup(resize_keyboard=True)
 
 def get_cancel_keyboard():

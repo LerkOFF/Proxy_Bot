@@ -1,4 +1,3 @@
-# buy.py
 from datetime import datetime
 from aiogram import types
 from aiogram.fsm.context import FSMContext
@@ -59,7 +58,6 @@ async def buy_server(message: types.Message, state: FSMContext):
     )
     await state.set_state(BuyProcess.Buying)
     set_user_state(chat_id, BuyProcess.Buying)
-    # Сохраняем выбранный сервер в FSMContext
     await state.update_data(server=server, server_ip=server_ip)
     logger.info(f"Пользователь {chat_id} выбрал сервер {server}")
 
@@ -114,3 +112,13 @@ async def handle_file_upload(message: types.Message, state: FSMContext):
 
     await state.set_state(BuyProcess.WaitingPaymentConfirmation)
     set_user_state(chat_id, BuyProcess.WaitingPaymentConfirmation)
+
+async def show_contacts(message: types.Message, state: FSMContext):
+    chat_id = message.chat.id
+    logger.info(f"User {chat_id} requested contacts")
+
+    await safe_send_message(
+        message.bot,
+        chat_id,
+        "Почта по вопросам - lerk@joulerk.ru"
+    )
