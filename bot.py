@@ -1,16 +1,14 @@
-# bot.py
-import logging
+import asyncio
 from aiogram import Bot, Dispatcher, F, types
-from aiogram.fsm.storage.base import StorageKey
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.base import StorageKey
 from buy import start, buy_server, cancel, handle_file_upload
 from db import get_user_state, get_all_users_from_db
 from payments import handle_approval
 from config import Config
 from states import BuyProcess
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+from keyboards import get_main_menu_keyboard
+from logger import logger
 
 async def main():
     bot = Bot(token=Config.TELEGRAM_BOT_TOKEN)
@@ -35,5 +33,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == '__main__':
-    import asyncio
     asyncio.run(main())

@@ -1,16 +1,13 @@
 # buy.py
 from datetime import datetime
-
 from aiogram import types
 from aiogram.fsm.context import FSMContext
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from config import Config
 from states import BuyProcess
-from db import add_user, set_user_state, get_user_state, is_payment_recent, get_last_payment_date, user_already_has_subscription, update_user_payment
-import logging
-
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
+from db import add_user, set_user_state, user_already_has_subscription, update_user_payment, get_user_state
+from keyboards import get_main_menu_keyboard, get_cancel_keyboard
+from utils import safe_send_message
+from logger import logger
 
 async def start(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
@@ -22,12 +19,11 @@ async def start(message: types.Message, state: FSMContext):
 
     add_user(chat_id)
 
-    keyboard_builder = ReplyKeyboardBuilder()
-    keyboard_builder.add(types.KeyboardButton(text="Купить 'Финляндия'"))
-    keyboard_builder.add(types.KeyboardButton(text="Купить 'США'"))
-    keyboard = keyboard_builder.as_markup(resize_keyboard=True)
+    keyboard = get_main_menu_keyboard()
 
-    await message.answer(
+    await safe_send_message(
+        message.bot,
+        chat_id,
         "Привет! Я бот для покупки прокси через WireGuard! Выберите действие:",
         reply_markup=keyboard
     )
@@ -45,18 +41,18 @@ async def buy_server(message: types.Message, state: FSMContext):
         server = 'USA'
         server_ip = Config.WG2_SERVER_IP
     else:
-        await message.answer("Неизвестная команда.")
+        await safe_send_message(message.bot, chat_id, "Неизвестная команда.")
         return
 
     if user_already_has_subscription(chat_id, server):
-        await message.answer(f"У вас уже есть активная подписка на сервер {server}.")
+        await safe_send_message(message.bot, chat_id, f"У вас уже есть активная подписка на сервер {server}.")
         return
 
-    keyboard_builder = ReplyKeyboardBuilder()
-    keyboard_builder.add(types.KeyboardButton(text="Отмена"))
-    keyboard = keyboard_builder.as_markup(resize_keyboard=True)
+    keyboard = get_cancel_keyboard()
 
-    await message.answer(
+    await safe_send_message(
+        message.bot,
+        chat_id,
         f"Хороший выбор! Переведите ровно 200р на Boosty: https://boosty.to/lerk/donate.\n"
         "После перевода отправьте чек или скриншот подтверждающий это.",
         reply_markup=keyboard
@@ -65,16 +61,17 @@ async def buy_server(message: types.Message, state: FSMContext):
     set_user_state(chat_id, BuyProcess.Buying)
     # Сохраняем выбранный сервер в FSMContext
     await state.update_data(server=server, server_ip=server_ip)
+    logger.info(f"Пользователь {chat_id} выбрал сервер {server}")
 
 async def cancel(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
+    logger.info(f"Пользователь {chat_id} отменил процесс покупки")
 
-    keyboard_builder = ReplyKeyboardBuilder()
-    keyboard_builder.add(types.KeyboardButton(text="Купить 'Финляндия'"))
-    keyboard_builder.add(types.KeyboardButton(text="Купить 'США'"))
-    keyboard = keyboard_builder.as_markup(resize_keyboard=True)
+    keyboard = get_main_menu_keyboard()
 
-    await message.answer(
+    await safe_send_message(
+        message.bot,
+        chat_id,
         "Отмена произведена. Вы можете выбрать действие снова.",
         reply_markup=keyboard
     )
@@ -89,19 +86,31 @@ async def handle_file_upload(message: types.Message, state: FSMContext):
     server = data.get('server')
     server_ip = data.get('server_ip')
 
-    inline_keyboard_builder = InlineKeyboardBuilder()
-    inline_keyboard_builder.add(types.InlineKeyboardButton(text="Одобрить", callback_data=f"approve_{chat_id}_{server}"))
-    inline_keyboard_builder.add(types.InlineKeyboardButton(text="Отклонить", callback_data=f"reject_{chat_id}_{server}"))
-    inline_reply_markup = inline_keyboard_builder.as_markup()
+    from keyboards import get_approval_inline_keyboard
+    inline_reply_markup = get_approval_inline_keyboard(chat_id, server)
 
     if message.photo:
-        await message.bot.send_photo(owner_id, photo=message.photo[-1].file_id,
-                                     caption=f"Чек от пользователя {chat_id} на сервер {server}", reply_markup=inline_reply_markup)
+        await message.bot.send_photo(
+            owner_id,
+            photo=message.photo[-1].file_id,
+            caption=f"Чек от пользователя {chat_id} на сервер {server}",
+            reply_markup=inline_reply_markup
+        )
     elif message.document:
-        await message.bot.send_document(owner_id, document=message.document.file_id,
-                                        caption=f"Чек от пользователя {chat_id} на сервер {server}", reply_markup=inline_reply_markup)
+        await message.bot.send_document(
+            owner_id,
+            document=message.document.file_id,
+            caption=f"Чек от пользователя {chat_id} на сервер {server}",
+            reply_markup=inline_reply_markup
+        )
 
-    await message.answer("Спасибо за отправку подтверждения! Мы скоро свяжемся с вами.")
+    await safe_send_message(
+        message.bot,
+        chat_id,
+        "Спасибо за отправку подтверждения! Мы скоро свяжемся с вами.",
+        reply_markup=types.ReplyKeyboardRemove()
+    )
     logger.info(f"Пользователь с chat_id {chat_id} отправил чек для сервера {server}.")
 
     await state.set_state(BuyProcess.WaitingPaymentConfirmation)
+    set_user_state(chat_id, BuyProcess.WaitingPaymentConfirmation)
