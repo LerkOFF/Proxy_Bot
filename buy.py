@@ -5,8 +5,10 @@ from config import Config
 from states import BuyProcess
 from db import add_user, set_user_state, user_already_has_subscription, update_user_payment, get_user_state
 from keyboards import get_main_menu_keyboard, get_cancel_keyboard
-from utils import safe_send_message
+from utils import safe_send_message, safe_send_photo
 from logger import logger
+import os
+from aiogram.types import FSInputFile
 
 async def start(message: types.Message, state: FSMContext):
     chat_id = message.chat.id
@@ -52,12 +54,34 @@ async def buy_server(message: types.Message, state: FSMContext):
     await safe_send_message(
         message.bot,
         chat_id,
-        f"Хороший выбор! Переведите ровно 200р на Boosty: https://boosty.to/lerk/donate.\n"
+        f"Хороший выбор! Переведите ровно 200р на DonationAlerts: https://www.donationalerts.com/r/joulerk.\n"
         "После перевода отправьте чек или скриншот подтверждающий это.",
         reply_markup=keyboard
     )
+    logger.info(f"Пользователь {chat_id} выбрал сервер {server} и получил инструкции по донату.")
+
+    qr_code_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'DonationAlertsQrCode.png')
+
+    if os.path.exists(qr_code_path):
+        qr_code_input = FSInputFile(qr_code_path)
+        await safe_send_photo(
+            message.bot,
+            chat_id,
+            qr_code_input,
+            caption="Или используйте QR-код для доната через DonationAlerts."
+        )
+        logger.info(f"QR-код DonationAlerts отправлен пользователю {chat_id}.")
+    else:
+        logger.error(f"Файл QR-кода {qr_code_path} не найден. Убедитесь, что он существует в корне проекта.")
+        await safe_send_message(
+            message.bot,
+            chat_id,
+            "Ошибка: QR-код для DonationAlerts не найден. Пожалуйста, свяжитесь с администратором.",
+        )
+
     await state.set_state(BuyProcess.Buying)
     set_user_state(chat_id, BuyProcess.Buying)
+    # Сохраняем выбранный сервер в FSMContext
     await state.update_data(server=server, server_ip=server_ip)
     logger.info(f"Пользователь {chat_id} выбрал сервер {server}")
 
